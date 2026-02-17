@@ -320,6 +320,74 @@
             color: rgba(255, 255, 255, .3);
             letter-spacing: 1px;
         }
+
+        /* ---------- Virtual Joystick ---------- */
+        #joystick-zone {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 50%;
+            height: 50%;
+            z-index: 50;
+            display: none;
+            touch-action: none;
+        }
+
+        #joystick-base {
+            position: absolute;
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.06);
+            border: 2px solid rgba(255, 255, 255, 0.12);
+            pointer-events: none;
+            display: none;
+        }
+
+        #joystick-thumb {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(180, 160, 255, 0.5), rgba(180, 160, 255, 0.15));
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            pointer-events: none;
+            display: none;
+        }
+
+        /* ---------- Power-up HUD ---------- */
+        #powerup-status {
+            position: fixed;
+            top: 70px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .pu-indicator {
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #fff;
+            backdrop-filter: blur(8px);
+            animation: puIn .3s ease;
+        }
+
+        @keyframes puIn {
+            from {
+                opacity: 0;
+                transform: scale(0.7);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
     </style>
 </head>
 
@@ -331,13 +399,20 @@
     <div id="hud">
         <div id="timer">00:00</div>
     </div>
+    <div id="powerup-status"></div>
+
+    <!-- Virtual Joystick -->
+    <div id="joystick-zone">
+        <div id="joystick-base"></div>
+        <div id="joystick-thumb"></div>
+    </div>
 
     <!-- Start Screen -->
     <div id="start-screen">
         <h1>DOT EVASION</h1>
         <div class="tagline">PASTEL EDITION</div>
         <button class="btn-start" id="btn-start">START</button>
-        <div class="hint">WASD 또는 방향키로 조작</div>
+        <div class="hint">WASD / 방향키 · 모바일 터치 지원</div>
     </div>
 
     <!-- Game Over Overlay -->
@@ -441,6 +516,66 @@
         window.addEventListener('keyup', e => {
             keys[e.code] = false;
         });
+
+        // ---------- Virtual Joystick ----------
+        const jZone = document.getElementById('joystick-zone');
+        const jBase = document.getElementById('joystick-base');
+        const jThumb = document.getElementById('joystick-thumb');
+        let joyX = 0, joyY = 0, joyActive = false, joyTouchId = null;
+        const isMobile = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+        if (isMobile) jZone.style.display = 'block';
+
+        jZone.addEventListener('touchstart', e => {
+            e.preventDefault();
+            const t = e.changedTouches[0];
+            joyTouchId = t.identifier;
+            joyActive = true;
+            const bx = t.clientX - 60, by = t.clientY - 60;
+            jBase.style.left = bx + 'px'; jBase.style.top = by + 'px';
+            jBase.style.display = 'block';
+            jThumb.style.left = (t.clientX - 25) + 'px';
+            jThumb.style.top = (t.clientY - 25) + 'px';
+            jThumb.style.display = 'block';
+        }, { passive: false });
+        jZone.addEventListener('touchmove', e => {
+            e.preventDefault();
+            for (const t of e.changedTouches) {
+                if (t.identifier !== joyTouchId) continue;
+                const cx = parseFloat(jBase.style.left) + 60;
+                const cy = parseFloat(jBase.style.top) + 60;
+                let dx = t.clientX - cx, dy = t.clientY - cy;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                const maxR = 50;
+                if (dist > maxR) { dx = (dx / dist) * maxR; dy = (dy / dist) * maxR; }
+                jThumb.style.left = (cx + dx - 25) + 'px';
+                jThumb.style.top = (cy + dy - 25) + 'px';
+                joyX = dx / maxR; joyY = dy / maxR;
+            }
+        }, { passive: false });
+        const endJoy = e => {
+            for (const t of e.changedTouches) {
+                if (t.identifier !== joyTouchId) continue;
+                joyActive = false; joyX = 0; joyY = 0; joyTouchId = null;
+                jBase.style.display = 'none'; jThumb.style.display = 'none';
+            }
+        };
+        jZone.addEventListener('touchend', endJoy);
+        jZone.addEventListener('touchcancel', endJoy);
+
+        // ---------- Power-up System ----------
+        const puStatusEl = document.getElementById('powerup-status');
+        let powerups = [];
+        let puSpawnTimer = 8;
+        // Active effects
+        let hasShield = false;
+        let speedBoostTimer = 0;
+        let slowMoTimer = 0;
+        const PU_TYPES = [
+            { type: 'shield', emoji: '🛡️', label: '쉴드', color: 'rgba(100,200,255,', bg: 'rgba(100,200,255,0.2)' },
+            { type: 'speed', emoji: '⚡', label: '속도UP', color: 'rgba(255,220,100,', bg: 'rgba(255,220,100,0.2)' },
+            { type: 'slow', emoji: '💫', label: '슬로우', color: 'rgba(200,160,255,', bg: 'rgba(200,160,255,0.2)' },
+            { type: 'emp', emoji: '💥', label: 'EMP', color: 'rgba(255,140,180,', bg: 'rgba(255,140,180,0.2)' },
+        ];
 
         // ============================================================
         //  AUDIO SYSTEM (Web Audio API)
@@ -731,8 +866,10 @@
         //  PLAYER
         // ============================================================
         function updatePlayer(dt) {
-            const accel = 0.55;
+            const baseAccel = 0.55;
             const friction = 0.88;
+            const spdMult = speedBoostTimer > 0 ? 1.5 : 1;
+            const accel = baseAccel * spdMult;
 
             // Keyboard input
             let ix = 0, iy = 0;
@@ -741,12 +878,12 @@
             if (keys['ArrowUp'] || keys['KeyW']) iy -= 1;
             if (keys['ArrowDown'] || keys['KeyS']) iy += 1;
 
-            // Normalize diagonal
-            if (ix !== 0 && iy !== 0) {
-                const inv = 1 / Math.SQRT2;
-                ix *= inv;
-                iy *= inv;
-            }
+            // Joystick input (blend)
+            if (joyActive) { ix += joyX; iy += joyY; }
+
+            // Normalize if > 1
+            const mag = Math.sqrt(ix * ix + iy * iy);
+            if (mag > 1) { ix /= mag; iy /= mag; }
 
             player.vx += ix * accel;
             player.vy += iy * accel;
@@ -905,8 +1042,9 @@
                         e.vy = (e.vy / spd) * e.homingSpeed;
                     }
                 }
-                e.x += e.vx;
-                e.y += e.vy;
+                const smo = slowMoTimer > 0 ? 0.5 : 1;
+                e.x += e.vx * smo;
+                e.y += e.vy * smo;
 
                 // Remove off-screen (only non-homing)
                 if (!e.homing) {
@@ -923,6 +1061,14 @@
                     const dy = e.y - player.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     if (dist < e.r + player.r * 0.6) {
+                        if (hasShield) {
+                            hasShield = false;
+                            spawnEnemyDeathParticles(e.x, e.y, 'rgba(100,200,255,');
+                            enemies.splice(i, 1);
+                            playChime(400, 0.3);
+                            updatePuHUD();
+                            continue;
+                        }
                         triggerGameOver();
                         return;
                     }
@@ -986,6 +1132,109 @@
         }
 
         // ============================================================
+        //  POWER-UPS
+        // ============================================================
+        function spawnPowerup() {
+            const margin = 60;
+            const pu = PU_TYPES[Math.floor(Math.random() * PU_TYPES.length)];
+            powerups.push({
+                x: margin + Math.random() * (W - margin * 2),
+                y: margin + Math.random() * (H - margin * 2),
+                r: 14, life: 7, maxLife: 7,
+                type: pu.type, emoji: pu.emoji, label: pu.label,
+                color: pu.color, bg: pu.bg, phase: Math.random() * PI2,
+            });
+        }
+
+        function activatePowerup(pu) {
+            playChime(900, 0.25);
+            // collect particles
+            for (let i = 0; i < 15; i++) {
+                const ang = Math.random() * PI2;
+                const spd = 1 + Math.random() * 3;
+                spawnParticle(pu.x, pu.y, pu.color, 2 + Math.random() * 3,
+                    0.4 + Math.random() * 0.3, Math.cos(ang) * spd, Math.sin(ang) * spd);
+            }
+            switch (pu.type) {
+                case 'shield': hasShield = true; break;
+                case 'speed': speedBoostTimer = 5; break;
+                case 'slow': slowMoTimer = 4; break;
+                case 'emp':
+                    enemies.forEach(e => spawnEnemyDeathParticles(e.x, e.y, e.color));
+                    enemies = [];
+                    playChime(300, 0.5);
+                    break;
+            }
+            updatePuHUD();
+        }
+
+        function updatePowerups(dt) {
+            // Spawn timer
+            puSpawnTimer -= dt;
+            if (puSpawnTimer <= 0) {
+                spawnPowerup();
+                puSpawnTimer = 10 + Math.random() * 5;
+            }
+            // Timers
+            if (speedBoostTimer > 0) { speedBoostTimer -= dt; if (speedBoostTimer <= 0) updatePuHUD(); }
+            if (slowMoTimer > 0) { slowMoTimer -= dt; if (slowMoTimer <= 0) updatePuHUD(); }
+
+            // Update & collect
+            for (let i = powerups.length - 1; i >= 0; i--) {
+                const p = powerups[i];
+                p.life -= dt;
+                p.phase += dt * 3;
+                if (p.life <= 0) { powerups.splice(i, 1); continue; }
+                // collect check
+                const dx = p.x - player.x, dy = p.y - player.y;
+                if (Math.sqrt(dx * dx + dy * dy) < p.r + player.r) {
+                    activatePowerup(p);
+                    powerups.splice(i, 1);
+                }
+            }
+        }
+
+        function drawPowerups(time) {
+            powerups.forEach(p => {
+                const alpha = Math.min(1, p.life / 1.5); // fade out in last 1.5s
+                const bob = Math.sin(p.phase) * 4;
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.shadowColor = p.color + '0.6)';
+                ctx.shadowBlur = 20;
+                // Outer ring
+                ctx.strokeStyle = p.color + '0.5)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y + bob, p.r + 4, 0, PI2);
+                ctx.stroke();
+                // Inner glow
+                const g = ctx.createRadialGradient(p.x, p.y + bob, 0, p.x, p.y + bob, p.r);
+                g.addColorStop(0, p.color + '0.4)');
+                g.addColorStop(1, p.color + '0)');
+                ctx.fillStyle = g;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y + bob, p.r + 6, 0, PI2);
+                ctx.fill();
+                // Emoji
+                ctx.shadowBlur = 0;
+                ctx.font = '16px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(p.emoji, p.x, p.y + bob);
+                ctx.restore();
+            });
+        }
+
+        function updatePuHUD() {
+            let html = '';
+            if (hasShield) html += '<span class="pu-indicator" style="background:rgba(100,200,255,0.2);border:1px solid rgba(100,200,255,0.3)">🛡️ 쉴드</span>';
+            if (speedBoostTimer > 0) html += '<span class="pu-indicator" style="background:rgba(255,220,100,0.2);border:1px solid rgba(255,220,100,0.3)">⚡ ' + Math.ceil(speedBoostTimer) + 's</span>';
+            if (slowMoTimer > 0) html += '<span class="pu-indicator" style="background:rgba(200,160,255,0.2);border:1px solid rgba(200,160,255,0.3)">💫 ' + Math.ceil(slowMoTimer) + 's</span>';
+            puStatusEl.innerHTML = html;
+        }
+
+        // ============================================================
         //  GAME LOGIC
         // ============================================================
         function formatTime(sec) {
@@ -1035,6 +1284,12 @@
             hasRevived = false;
             invincible = false;
             invincibleTimer = 0;
+            powerups = [];
+            hasShield = false;
+            speedBoostTimer = 0;
+            slowMoTimer = 0;
+            puSpawnTimer = 8;
+            puStatusEl.innerHTML = '';
             gameOver = false;
             gameRunning = true;
             overlay.style.display = 'none';
@@ -1127,10 +1382,12 @@
                 timerEl.textContent = formatTime(survivalTime);
                 updatePlayer(dt);
                 updateEnemies(dt);
+                updatePowerups(dt);
             }
 
             // Draw enemies (even when paused for death animation)
             drawEnemies(time);
+            drawPowerups(time);
 
             // Always draw the player (alive, dying, or idle)
             drawPlayer(time);
