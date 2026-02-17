@@ -54,7 +54,6 @@
             letter-spacing: 4px;
         }
 
-        /* ---------- Game Over Overlay ---------- */
         #overlay {
             position: fixed;
             inset: 0;
@@ -66,6 +65,15 @@
             backdrop-filter: blur(18px);
             -webkit-backdrop-filter: blur(18px);
             animation: fadeIn .4s ease;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        #overlay-inner {
+            display: flex;
+            gap: 16px;
+            align-items: flex-start;
+            justify-content: center;
         }
 
         @keyframes fadeIn {
@@ -79,7 +87,7 @@
         }
 
         #panel {
-            width: min(380px, 85vw);
+            width: min(360px, 85vw);
             padding: 40px 32px 32px;
             border-radius: 28px;
             background: linear-gradient(135deg,
@@ -92,6 +100,59 @@
             text-align: center;
             color: #fff;
             animation: panelIn .5s cubic-bezier(.22, 1, .36, 1);
+            flex-shrink: 0;
+        }
+
+        /* ---------- Leaderboard Side Panel ---------- */
+        #lb-panel {
+            width: 280px;
+            max-height: 480px;
+            padding: 28px 24px;
+            border-radius: 28px;
+            background: linear-gradient(135deg,
+                    rgba(180, 160, 255, .10),
+                    rgba(130, 220, 220, .08),
+                    rgba(255, 180, 220, .06));
+            border: 1px solid rgba(255, 255, 255, .10);
+            box-shadow: 0 8px 48px rgba(130, 180, 255, .12),
+                0 0 0 1px rgba(255, 255, 255, .04) inset;
+            color: #fff;
+            animation: panelIn .6s cubic-bezier(.22, 1, .36, 1);
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        #lb-panel h2 {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: 3px;
+            margin-bottom: 14px;
+            text-align: center;
+            background: linear-gradient(135deg, #ffcc80, #b4a0ff, #80e8e0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        #lb-panel::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        #lb-panel::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, .1);
+            border-radius: 2px;
+        }
+
+        @media (max-width: 700px) {
+            #overlay-inner {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            #lb-panel {
+                width: min(360px, 85vw);
+                max-height: 250px;
+            }
         }
 
         @keyframes panelIn {
@@ -389,37 +450,7 @@
             }
         }
 
-        /* ---------- Leaderboard ---------- */
-        .lb-section {
-            margin-top: 20px;
-        }
-
-        .lb-toggle {
-            background: none;
-            border: none;
-            color: rgba(255, 255, 255, .5);
-            font-family: 'Outfit', sans-serif;
-            font-size: 13px;
-            cursor: pointer;
-            letter-spacing: 1px;
-            transition: color .2s;
-        }
-
-        .lb-toggle:hover {
-            color: #fff;
-        }
-
-        .lb-list {
-            margin-top: 10px;
-            max-height: 0;
-            overflow: hidden;
-            transition: max-height .4s ease;
-        }
-
-        .lb-list.open {
-            max-height: 400px;
-        }
-
+        /* ---------- Leaderboard Table ---------- */
         .lb-table {
             width: 100%;
             border-collapse: collapse;
@@ -526,35 +557,35 @@
 
     <!-- Game Over Overlay -->
     <div id="overlay">
-        <div id="panel">
-            <h1>GAME OVER</h1>
-            <div class="subtitle">당신의 여정이 끝났습니다</div>
-            <div class="score-label">생존 시간</div>
-            <div class="score-value" id="final-time">00:00</div>
-            <div class="best" id="best-time">최고 기록: 00:00</div>
-            <div class="new-record" id="new-record">🌟 NEW RECORD!</div>
-            <div class="btn-row">
-                <button class="btn btn-revive" id="btn-revive">📺 광고 보고 부활하기</button>
-                <button class="btn btn-restart" id="btn-restart">다시 시작</button>
-            </div>
-            <div class="lb-section">
-                <button class="lb-toggle" id="lb-toggle">🏆 랭킹 보기</button>
-                <div class="lb-list" id="lb-list">
-                    <div class="nick-row" id="nick-row">
-                        <input class="nick-input" id="nick-input" placeholder="닉네임 입력" maxlength="12">
-                        <button class="btn-nick" id="btn-nick">등록</button>
-                    </div>
-                    <table class="lb-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>이름</th>
-                                <th>시간</th>
-                            </tr>
-                        </thead>
-                        <tbody id="lb-body"></tbody>
-                    </table>
+        <div id="overlay-inner">
+            <div id="panel">
+                <h1>GAME OVER</h1>
+                <div class="subtitle">당신의 여정이 끝났습니다</div>
+                <div class="score-label">생존 시간</div>
+                <div class="score-value" id="final-time">00:00</div>
+                <div class="best" id="best-time">최고 기록: 00:00</div>
+                <div class="new-record" id="new-record">🌟 NEW RECORD!</div>
+                <div class="btn-row">
+                    <button class="btn btn-revive" id="btn-revive">📺 광고 보고 부활하기</button>
+                    <button class="btn btn-restart" id="btn-restart">다시 시작</button>
                 </div>
+            </div>
+            <div id="lb-panel">
+                <h2>🏆 RANKING</h2>
+                <div class="nick-row" id="nick-row">
+                    <input class="nick-input" id="nick-input" placeholder="닉네임 입력" maxlength="12">
+                    <button class="btn-nick" id="btn-nick">등록</button>
+                </div>
+                <table class="lb-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>이름</th>
+                            <th>시간</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lb-body"></tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -1487,8 +1518,6 @@
         });
 
         // ---------- Leaderboard System ----------
-        const lbToggle = document.getElementById('lb-toggle');
-        const lbList = document.getElementById('lb-list');
         const lbBody = document.getElementById('lb-body');
         const nickInput = document.getElementById('nick-input');
         const btnNick = document.getElementById('btn-nick');
@@ -1499,12 +1528,6 @@
 
         // Load saved nickname
         nickInput.value = localStorage.getItem('dotEvasion_nick') || '';
-
-        lbToggle.addEventListener('click', () => {
-            lbList.classList.toggle('open');
-            lbToggle.textContent = lbList.classList.contains('open') ? '🏆 랭킹 접기' : '🏆 랭킹 보기';
-            if (lbList.classList.contains('open')) renderLB();
-        });
 
         btnNick.addEventListener('click', registerScore);
         nickInput.addEventListener('keydown', e => { if (e.key === 'Enter') registerScore(); });
@@ -1541,8 +1564,7 @@
             lastScoreTime = score;
             lastScoreRegistered = false;
             nickRow.style.display = 'flex';
-            lbList.classList.remove('open');
-            lbToggle.textContent = '🏆 랭킹 보기';
+            renderLB();
         }
 
         // ============================================================
