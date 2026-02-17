@@ -388,6 +388,115 @@
                 transform: scale(1);
             }
         }
+
+        /* ---------- Leaderboard ---------- */
+        .lb-section {
+            margin-top: 20px;
+        }
+
+        .lb-toggle {
+            background: none;
+            border: none;
+            color: rgba(255, 255, 255, .5);
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            cursor: pointer;
+            letter-spacing: 1px;
+            transition: color .2s;
+        }
+
+        .lb-toggle:hover {
+            color: #fff;
+        }
+
+        .lb-list {
+            margin-top: 10px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height .4s ease;
+        }
+
+        .lb-list.open {
+            max-height: 400px;
+        }
+
+        .lb-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .lb-table th {
+            font-size: 11px;
+            font-weight: 400;
+            color: rgba(255, 255, 255, .35);
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, .08);
+        }
+
+        .lb-table td {
+            font-size: 13px;
+            padding: 5px 0;
+            color: rgba(255, 255, 255, .7);
+        }
+
+        .lb-table tr.me td {
+            color: #ffcc80;
+            font-weight: 600;
+        }
+
+        .lb-table td:first-child {
+            color: rgba(255, 255, 255, .35);
+            width: 30px;
+        }
+
+        .lb-table td:last-child {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .nick-row {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            margin-bottom: 12px;
+        }
+
+        .nick-input {
+            flex: 1;
+            padding: 8px 12px;
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, .15);
+            background: rgba(255, 255, 255, .06);
+            color: #fff;
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .nick-input:focus {
+            border-color: rgba(180, 160, 255, .4);
+        }
+
+        .nick-input::placeholder {
+            color: rgba(255, 255, 255, .25);
+        }
+
+        .btn-nick {
+            padding: 8px 16px;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, rgba(180, 160, 255, .3), rgba(130, 220, 220, .2));
+            color: #fff;
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform .15s;
+        }
+
+        .btn-nick:hover {
+            transform: translateY(-1px);
+        }
     </style>
 </head>
 
@@ -427,6 +536,25 @@
             <div class="btn-row">
                 <button class="btn btn-revive" id="btn-revive">📺 광고 보고 부활하기</button>
                 <button class="btn btn-restart" id="btn-restart">다시 시작</button>
+            </div>
+            <div class="lb-section">
+                <button class="lb-toggle" id="lb-toggle">🏆 랭킹 보기</button>
+                <div class="lb-list" id="lb-list">
+                    <div class="nick-row" id="nick-row">
+                        <input class="nick-input" id="nick-input" placeholder="닉네임 입력" maxlength="12">
+                        <button class="btn-nick" id="btn-nick">등록</button>
+                    </div>
+                    <table class="lb-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>이름</th>
+                                <th>시간</th>
+                            </tr>
+                        </thead>
+                        <tbody id="lb-body"></tbody>
+                    </table>
+                </div>
             </div>
         </div>
     </div>
@@ -1264,6 +1392,7 @@
                 btnRevive.disabled = hasRevived;
                 btnRevive.textContent = hasRevived ? '이미 부활함' : '📺 광고 보고 부활하기';
                 overlay.style.display = 'flex';
+                showLeaderboardForScore(survivalTime);
             }, 600);
         }
 
@@ -1356,6 +1485,65 @@
             resetGame();
             playChime(600, 0.3);
         });
+
+        // ---------- Leaderboard System ----------
+        const lbToggle = document.getElementById('lb-toggle');
+        const lbList = document.getElementById('lb-list');
+        const lbBody = document.getElementById('lb-body');
+        const nickInput = document.getElementById('nick-input');
+        const btnNick = document.getElementById('btn-nick');
+        const nickRow = document.getElementById('nick-row');
+        let lbData = JSON.parse(localStorage.getItem('dotEvasion_lb') || '[]');
+        let lastScoreTime = 0;
+        let lastScoreRegistered = false;
+
+        // Load saved nickname
+        nickInput.value = localStorage.getItem('dotEvasion_nick') || '';
+
+        lbToggle.addEventListener('click', () => {
+            lbList.classList.toggle('open');
+            lbToggle.textContent = lbList.classList.contains('open') ? '🏆 랭킹 접기' : '🏆 랭킹 보기';
+            if (lbList.classList.contains('open')) renderLB();
+        });
+
+        btnNick.addEventListener('click', registerScore);
+        nickInput.addEventListener('keydown', e => { if (e.key === 'Enter') registerScore(); });
+
+        function registerScore() {
+            const name = nickInput.value.trim() || '???';
+            localStorage.setItem('dotEvasion_nick', name);
+            lbData.push({ name, time: lastScoreTime, date: Date.now() });
+            lbData.sort((a, b) => b.time - a.time);
+            if (lbData.length > 10) lbData.length = 10;
+            localStorage.setItem('dotEvasion_lb', JSON.stringify(lbData));
+            lastScoreRegistered = true;
+            nickRow.style.display = 'none';
+            renderLB();
+            playChime(800, 0.2);
+        }
+
+        function renderLB() {
+            let html = '';
+            if (lbData.length === 0) {
+                html = '<tr><td colspan="3" style="text-align:center;color:rgba(255,255,255,.3);padding:12px">아직 기록이 없습니다</td></tr>';
+            } else {
+                lbData.forEach((entry, i) => {
+                    const isMe = !lastScoreRegistered ? false :
+                        (Math.abs(entry.time - lastScoreTime) < 0.01);
+                    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+                    html += `<tr class="${isMe ? 'me' : ''}"><td>${medal}</td><td>${entry.name}</td><td>${formatTime(entry.time)}</td></tr>`;
+                });
+            }
+            lbBody.innerHTML = html;
+        }
+
+        function showLeaderboardForScore(score) {
+            lastScoreTime = score;
+            lastScoreRegistered = false;
+            nickRow.style.display = 'flex';
+            lbList.classList.remove('open');
+            lbToggle.textContent = '🏆 랭킹 보기';
+        }
 
         // ============================================================
         //  MAIN LOOP
